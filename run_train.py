@@ -30,6 +30,5 @@ def main():
     train_semi_adversarial(args, device, pretrained)
     print("✅ Training finished!")
 
-# --- Windows multiprocessing guard ---
 if __name__ == "__main__":
     main()
