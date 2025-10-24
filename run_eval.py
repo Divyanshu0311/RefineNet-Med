@@ -4,14 +4,14 @@ from scripts.evaluate import evaluate_model
 
 def main():
     args = dict(
-        images_dir="data/Kvasir-SEG/images",
-        masks_dir="data/Kvasir-SEG/masks",
-        # model_path="outputs/unet_pretrained.pth",  
-        model_path="outputs/G_iter2200.pth",
-        refiner_path="outputs/R_iter2200.pth",
-        save_dir="eval_outputs/eval_results",
+        images_dir="Kvasir-SEG/test/images",
+        masks_dir="Kvasir-SEG/test/masks",#"data/Kvasir-SEG/masks",
+        # model_path="outputs/unet_pretrained.pth",
+        model_path="output_models/G_iter800.pth",
+        refiner_path="output_models/R_iter800.pth",
+        save_dir="eval_outputs/eval_results_test_60",
         img_size=256,
-        base_filters=16,
+        base_filters=32,
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

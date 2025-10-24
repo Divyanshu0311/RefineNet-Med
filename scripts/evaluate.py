@@ -13,8 +13,10 @@ from utils import dice_coeff, save_vis
 # -------------------------------
 # Metric calculations
 # -------------------------------
+
+threshold = 0.6
 def compute_metrics(preds, masks):
-    preds = (torch.sigmoid(preds) > 0.5).float().cpu().numpy()
+    preds = (torch.sigmoid(preds) > threshold).float().cpu().numpy()
     masks = masks.cpu().numpy()
 
     dices, ious, precs, recs, f1s = [], [], [], [], []

@@ -6,7 +6,7 @@ import torchvision.transforms as T
 
 class KvasirSegDataset(Dataset):
     def __init__(self, images_dir, masks_dir, img_size=256):
-        self.images = sorted([os.path.join(images_dir, f) for f in os.listdir(images_dir) if f.endswith('.jpg')])
+        self.images = sorted([os.path.join(images_dir, f) for f in os.listdir(images_dir) if f.endswith('.jpg') or f.endswith('.png')])
         self.masks = sorted([os.path.join(masks_dir, f) for f in os.listdir(masks_dir) if f.endswith('.jpg') or f.endswith('.png')])
         assert len(self.images) == len(self.masks)
         self.tf_img = T.Compose([

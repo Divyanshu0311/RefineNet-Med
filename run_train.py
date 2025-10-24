@@ -5,14 +5,14 @@ from scripts.train import train_supervised, train_semi_adversarial
 
 def main():
     args = dict(
-        images_dir="data/Kvasir-SEG/images",
-        masks_dir="data/Kvasir-SEG/masks",
-        save_dir="outputs",
+        images_dir="Kvasir-SEG/train/images",
+        masks_dir="Kvasir-SEG/train/masks",
+        save_dir="output_models",
         img_size=256,
-        batch_size=2,
-        base_filters=16,
+        batch_size=4,
+        base_filters=32,
         lr=1e-4,
-        sup_epochs=8,
+        sup_epochs=10,
         semi_epochs=15,
         label_frac=0.3,
         lambda_sup=1.0,
