@@ -3,17 +3,18 @@ import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), "scripts"))
 from scripts.train import train_supervised, train_semi_adversarial
 
+
 def main():
     args = dict(
         images_dir="Kvasir-SEG/train/images",
         masks_dir="Kvasir-SEG/train/masks",
-        save_dir="output_models",
+        save_dir="output_models_100",
         img_size=256,
-        batch_size=4,
+        batch_size=8,
         base_filters=32,
         lr=1e-4,
-        sup_epochs=10,
-        semi_epochs=15,
+        sup_epochs=100,
+        semi_epochs=150,
         label_frac=0.3,
         lambda_sup=1.0,
         lambda_adv=0.05,
