@@ -35,12 +35,14 @@ class KvasirSegDataset(Dataset):
                 A.HueSaturationValue(p=0.5)
             ], p=0.5),
             A.GaussianBlur(3, p=0.2),
+            A.Normalize(mean=(0, 0, 0), std=(1, 1, 1)),
             ToTensorV2()
         ])
 
         # --- Only resize for validation/testing ---
         self.val_tf = A.Compose([
             A.Resize(img_size, img_size),
+            A.Normalize(mean=(0, 0, 0), std=(1, 1, 1)),
             ToTensorV2()
         ])
 
