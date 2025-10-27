@@ -7,19 +7,19 @@ def main():
     args = dict(
         images_dir="Kvasir-SEG/train/images",
         masks_dir="Kvasir-SEG/train/masks",
-        save_dir="output_models",
+        save_dir="output_models_augmented",
         img_size=256,
         batch_size=4,
         base_filters=32,
         lr=1e-4,
         sup_epochs=10,
-        semi_epochs=15,
+        semi_epochs=20,
         label_frac=0.3,
         lambda_sup=1.0,
         lambda_adv=0.05,
         lambda_bnd=0.5,
         log_every=20,
-        ckpt_every=200
+        ckpt_every=500
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

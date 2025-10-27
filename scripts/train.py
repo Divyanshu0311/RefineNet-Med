@@ -29,7 +29,7 @@ def train_supervised(args, device):
     print("\n🩺 Stage 1: Supervised U-Net Training")
     set_seed()
 
-    dataset = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"])
+    dataset = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"], augment=True)
     n_total = len(dataset)
     val_size = max(1, int(0.15 * n_total))
     train_size = n_total - val_size
@@ -78,7 +78,7 @@ def train_supervised(args, device):
 def train_semi_adversarial(args, device, pretrained_path):
     print("\n🎭 Stage 2: Adversarial Refinement (U-Net + GAN)")
 
-    dataset = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"])
+    dataset = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"],augment=True)
     n_total = len(dataset)
     labeled_n = max(1, int(args["label_frac"] * n_total))
     unlabeled_n = n_total - labeled_n
