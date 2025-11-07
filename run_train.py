@@ -7,7 +7,7 @@ def main():
     args = dict(
         images_dir="Kvasir-SEG/train/images",
         masks_dir="Kvasir-SEG/train/masks",
-        save_dir="output_models_augmented",
+        save_dir="output_models_augmented_pinn",
         img_size=256,
         batch_size=4,
         base_filters=32,

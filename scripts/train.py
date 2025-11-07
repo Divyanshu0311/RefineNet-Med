@@ -10,6 +10,7 @@ from losses import (
     boundary_loss,
     generator_adversarial_loss,
     discriminator_adversarial_loss,
+    hybrid_pinn_loss,
 )
 from utils import dice_coeff, save_vis
 
@@ -49,7 +50,7 @@ def train_supervised(args, device):
         for imgs, masks in tqdm(train_loader, desc=f"Epoch {epoch+1}/{args['sup_epochs']}"):
             imgs, masks = imgs.to(device), masks.to(device)
             logits = model(imgs)
-            loss = bce_dice_loss(logits, masks)
+            loss = hybrid_pinn_loss(logits, masks, imgs)
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -139,7 +140,7 @@ def train_semi_adversarial(args, device, pretrained_path):
             # ---- Generator (G + R) ----
             G.zero_grad()
             R.zero_grad()
-            loss_sup = bce_dice_loss(refined_logits_lab, masks_lab)
+            loss_sup = hybrid_pinn_loss(refined_logits_lab, masks_lab, imgs_lab)
             loss_boundary = boundary_loss(refined_logits_lab, masks_lab)
 
             pred_fake_lab = D(torch.cat([imgs_lab, refined_mask_lab], dim=1))
