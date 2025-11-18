@@ -166,28 +166,34 @@ class LMLP(nn.Module):
 # ---------- Up block (same design as your code but uses LDA_B for conv) ----------
 class Up(nn.Module):
     def __init__(self, in_ch, out_ch, use_lda=True):
+        """
+        in_ch: number of channels of the tensor coming INTO this Up block (pre-upsample)
+               i.e., the channels of the input to ConvTranspose2d.
+        out_ch: number of channels produced by ConvTranspose2d (and target decoder channels).
+               After upsample we will concat with skip (which should have out_ch channels),
+               so conv will receive (out_ch + out_ch) channels as input.
+        """
         super().__init__()
-        self.up = nn.ConvTranspose2d(in_ch, out_ch, 2, stride=2)
-        # after cat, channels = out_ch + skip_ch. The calling code must set in_ch accordingly.
-        # We accept conv_in_ch = out_ch + skip_ch at runtime, so we allow a generic conv module.
-        # But to simplify, we expect `in_ch` passed here equals concatenated channels.
-        # So implement conv as LDA_B(in_ch, out_ch) or a simple ConvBlock.
-        self.use_lda = use_lda
+        # ConvTranspose expects the incoming channels (not concatenated)
+        self.up = nn.ConvTranspose2d(in_ch, out_ch, kernel_size=2, stride=2)
+        # After upsample we will concat: channels = out_ch (upsampled) + skip_ch (should be out_ch)
+        conv_in = out_ch + out_ch  # typical UNet keeps skip channels same as out_ch
         if use_lda:
-            self.conv = LDA_B(in_ch, out_ch)
+            self.conv = LDA_B(conv_in, out_ch)
         else:
-            self.conv = ConvBlock(in_ch, out_ch)
+            self.conv = ConvBlock(conv_in, out_ch)
 
     def forward(self, x, skip):
         x = self.up(x)
-        # align
+        # pad if sizes differ
         diffY = skip.size(2) - x.size(2)
         diffX = skip.size(3) - x.size(3)
         if diffY != 0 or diffX != 0:
             x = F.pad(x, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
+        # concat: upsampled (out_ch) + skip (out_ch) => conv_in = 2*out_ch
         x = torch.cat([x, skip], dim=1)
         return self.conv(x)
-
+    
 # ---------- ConvBlock kept for completeness (your original) ----------
 class ConvBlock(nn.Module):
     def __init__(self, in_ch, out_ch):
@@ -222,10 +228,10 @@ class HybridUNetGenerator(nn.Module):
 
         # Decoder (Up blocks). Note: after up we cat skip => conv in_ch = out_ch + skip_ch
         # We set in_ch appropriately during init: for first up, up convtranspose maps f*16 -> f*8 then cat with enc4 (f*8) => in_ch = f*8 + f*8 = f*16
-        self.up4 = Up(f*16, f*8, use_lda=use_lda)
-        self.up3 = Up(f*8 + f*4, f*4, use_lda=use_lda)   # after previous, conv produces f*8 -> up to f*4, cat with enc3 => f*4 + f*4 = f*8 (we pass in_ch=f*8 to Up)
-        self.up2 = Up(f*4 + f*2, f*2, use_lda=use_lda)
-        self.up1 = Up(f*2 + f, f, use_lda=use_lda)
+        self.up4 = Up(f*16, f*8, use_lda=use_lda)   # ConvTranspose: in_ch=f*16 -> out_ch=f*8 ; conv_in = f*8+f*8
+        self.up3 = Up(f*8,  f*4, use_lda=use_lda)   # ConvTranspose: in_ch=f*8 -> out_ch=f*4
+        self.up2 = Up(f*4,  f*2, use_lda=use_lda)   # ConvTranspose: in_ch=f*4 -> out_ch=f*2
+        self.up1 = Up(f*2,  f,   use_lda=use_lda)
 
         self.out_conv = nn.Conv2d(f, out_channels, 1)
 
@@ -284,10 +290,16 @@ class DownSimple(nn.Module):
 
 class UpSimple(nn.Module):
     def __init__(self, in_ch, out_ch):
+        """
+        in_ch: incoming channels to ConvTranspose2d (pre-upsample)
+        out_ch: channels produced by ConvTranspose2d and expected channels of skip.
+        conv afterwards should accept (out_ch + out_ch) channels.
+        """
         super().__init__()
-        # in_ch here means features flowing in (not concatenated channels)
         self.up = nn.ConvTranspose2d(in_ch, out_ch, 2, stride=2)
-        self.conv = ConvBlock(in_ch, out_ch)  # after concat in_ch should be out_ch + skip_ch; for simplicity in refiner we assume symmetric sizes
+        # after concat, channels = out_ch + out_ch
+        self.conv = ConvBlock(out_ch * 2, out_ch)
+
     def forward(self, x, skip):
         x = self.up(x)
         diffY = skip.size()[2] - x.size()[2]
@@ -296,7 +308,6 @@ class UpSimple(nn.Module):
             x = F.pad(x, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
         x = torch.cat([x, skip], dim=1)
         return self.conv(x)
-
 # ---------- Patch Discriminator (same as your original) ----------
 class PatchDiscriminator(nn.Module):
     def __init__(self, in_channels=4, base_filters=16):
