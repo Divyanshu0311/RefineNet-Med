@@ -1,9 +1,14 @@
-import os, random, numpy as np, torch
+# train.py (updated)
+import os
+import random
+import numpy as np
+import torch
 from torch.utils.data import DataLoader, random_split
 import torch.optim as optim
 from tqdm import tqdm
 
-from models import UNet, Refiner, PatchDiscriminator
+# Use the hybrid generator implemented earlier (LDA_B + LMLP)
+from models import HybridUNetGenerator as UNet, Refiner, PatchDiscriminator
 from dataset import KvasirSegDataset
 from losses import (
     bce_dice_loss,
@@ -27,7 +32,7 @@ def set_seed(seed=42):
 
 # ---- Supervised training (Stage 1) ----
 def train_supervised(args, device):
-    print("\n🩺 Stage 1: Supervised U-Net Training")
+    print("\n🩺 Stage 1: Supervised U-Net Training (Hybrid generator)")
     set_seed()
 
     dataset = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"], augment=True)
@@ -36,13 +41,17 @@ def train_supervised(args, device):
     train_size = n_total - val_size
     train_ds, val_ds = random_split(dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_ds, batch_size=args["batch_size"], shuffle=True, num_workers=0)
-    val_loader = DataLoader(val_ds, batch_size=args["batch_size"], shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_ds, batch_size=args["batch_size"], shuffle=True, num_workers=args.get("num_workers", 4))
+    val_loader = DataLoader(val_ds, batch_size=args["batch_size"], shuffle=False, num_workers=args.get("num_workers", 4))
 
+    # use the hybrid generator (LDA + LMLP)
     model = UNet(in_channels=3, out_channels=1, base_filters=args["base_filters"]).to(device)
     opt = optim.Adam(model.parameters(), lr=args["lr"])
 
     best_dice = 0.0
+    save_path = os.path.join(args["save_dir"], "hybrid_unet_pretrained.pth")
+    os.makedirs(args["save_dir"], exist_ok=True)
+
     for epoch in range(args["sup_epochs"]):
         model.train()
         train_losses = []
@@ -64,41 +73,54 @@ def train_supervised(args, device):
                 imgs, masks = imgs.to(device), masks.to(device)
                 preds = model(imgs)
                 val_dices.append(dice_coeff(preds, masks))
-        mean_dice = np.mean(val_dices)
+        mean_dice = float(np.mean(val_dices))
         print(f"Epoch {epoch+1}: Train Loss {np.mean(train_losses):.4f} | Val Dice {mean_dice:.4f}")
 
         if mean_dice > best_dice:
             best_dice = mean_dice
-            torch.save(model.state_dict(), os.path.join(args["save_dir"], "unet_pretrained.pth"))
+            torch.save(model.state_dict(), save_path)
 
     print("✅ Supervised pretraining done.")
-    return os.path.join(args["save_dir"], "unet_pretrained.pth")
+    return save_path
 
 
 # ---- Semi-supervised + GAN refinement (Stage 2) ----
 def train_semi_adversarial(args, device, pretrained_path):
-    print("\n🎭 Stage 2: Adversarial Refinement (U-Net + GAN)")
+    print("\n🎭 Stage 2: Adversarial Refinement (Hybrid U-Net + GAN)")
 
-    dataset = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"],augment=True)
+    dataset = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"], augment=True)
     n_total = len(dataset)
     labeled_n = max(1, int(args["label_frac"] * n_total))
     unlabeled_n = n_total - labeled_n
     labeled_ds, unlabeled_ds = random_split(dataset, [labeled_n, unlabeled_n])
 
-    labeled_loader = DataLoader(labeled_ds, batch_size=args["batch_size"], shuffle=True, num_workers=2)
-    unlabeled_loader = DataLoader(unlabeled_ds, batch_size=args["batch_size"], shuffle=True, num_workers=2)
+    labeled_loader = DataLoader(labeled_ds, batch_size=args["batch_size"], shuffle=True, num_workers=args.get("num_workers", 4))
+    unlabeled_loader = DataLoader(unlabeled_ds, batch_size=args["batch_size"], shuffle=True, num_workers=args.get("num_workers", 4))
 
     # Models
     G = UNet(in_channels=3, out_channels=1, base_filters=args["base_filters"]).to(device)
-    R = Refiner(in_channels=4, out_channels=1, base_filters=args["base_filters"] // 2).to(device)
-    D = PatchDiscriminator(in_channels=4, base_filters=args["base_filters"] // 2).to(device)
+    R = Refiner(in_channels=4, out_channels=1, base_filters=max(8, args["base_filters"] // 2)).to(device)
+    D = PatchDiscriminator(in_channels=4, base_filters=max(8, args["base_filters"] // 2)).to(device)
 
-    G.load_state_dict(torch.load(pretrained_path, map_location=device))
+    # load pretrained weights if provided
+    if pretrained_path is not None and os.path.exists(pretrained_path):
+        state = torch.load(pretrained_path, map_location=device)
+        try:
+            G.load_state_dict(state)
+            print(f"Loaded pretrained generator weights from {pretrained_path}")
+        except Exception:
+            # try loading with strict=False if naming differs
+            G.load_state_dict(state, strict=False)
+            print(f"Loaded pretrained generator weights (non-strict) from {pretrained_path}")
+    else:
+        print("No valid pretrained checkpoint found. Starting G from scratch.")
 
     optG = optim.Adam(list(G.parameters()) + list(R.parameters()), lr=args["lr"])
     optD = optim.Adam(D.parameters(), lr=args["lr"] * 0.5)
 
     iters = 0
+    os.makedirs(args["save_dir"], exist_ok=True)
+
     for epoch in range(args["semi_epochs"]):
         G.train()
         R.train()

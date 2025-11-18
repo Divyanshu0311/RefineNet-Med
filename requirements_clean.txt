@@ -1,0 +1,18 @@
+torch>=1.12.0
+torchvision>=0.13.0
+torchaudio>=0.12.0
+numpy>=1.21
+pandas>=1.3
+matplotlib>=3.4
+pillow>=8.0
+tqdm>=4.64
+scikit-learn>=1.0
+scipy>=1.7
+albumentations>=1.0.3
+opencv-python>=4.5.5.64
+torchsummary>=1.5.1
+
+# Notes:
+# - Pin versions are conservative minimums compatible with PyTorch 1.12+ / 2.x in many setups.
+# - For PyTorch, install the correct CUDA-enabled wheel for your system (see https://pytorch.org).
+# - `albumentations` requires numpy and typically `opencv-python` for some transforms.

@@ -1,3 +1,4 @@
+# losses.py (updated)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -9,6 +10,10 @@ from scipy import ndimage
 # ---------------------- #
 
 def dice_loss(pred, target, smooth=1.):
+    """
+    pred: logits (B,1,H,W)
+    target: binary mask (B,1,H,W)
+    """
     pred = torch.sigmoid(pred)
     pred_flat = pred.view(pred.size(0), -1)
     target_flat = target.view(target.size(0), -1)
@@ -23,21 +28,29 @@ def bce_dice_loss(pred, target, dice_w=1.0, bce_w=1.0):
     return bce(pred, target) * bce_w + dice_loss(pred, target) * dice_w
 
 def boundary_loss(pred_logits, target):
+    """
+    Compute boundary-aware loss via distance transform.
+    Returns a tensor located on the same device as pred_logits.
+    """
+    device = pred_logits.device
     pred_prob = torch.sigmoid(pred_logits).detach().cpu().numpy()
     target_np = target.detach().cpu().numpy()
     batch = pred_prob.shape[0]
     loss = 0.0
     for i in range(batch):
-        p = pred_prob[i,0]
-        t = target_np[i,0]
+        p = pred_prob[i, 0]
+        t = target_np[i, 0]
         t_edge = ndimage.distance_transform_edt(1 - t)
         loss += (p * t_edge).mean()
-    return torch.tensor(loss / batch, dtype=torch.float32, device=pred_logits.device)
+    loss_tensor = torch.tensor(loss / batch, dtype=torch.float32, device=device)
+    return loss_tensor
 
 def generator_adversarial_loss(pred_fake):
+    # L2 loss toward 1
     return torch.mean((pred_fake - 1.)**2)
 
 def discriminator_adversarial_loss(pred_real, pred_fake):
+    # L2 GAN losses
     return torch.mean((pred_real - 1.)**2) + torch.mean(pred_fake**2)
 
 
@@ -52,7 +65,7 @@ def pinn_regularization_loss(pred, img, lambda_grad=0.5, lambda_edge=0.5):
     """
     pred_prob = torch.sigmoid(pred)
 
-    # --- Gradient Smoothness (like ∥∇mask∥²) ---
+    # --- Gradient Smoothness (like ∥∇mask∥¹) ---
     dx = torch.abs(pred_prob[:, :, :, 1:] - pred_prob[:, :, :, :-1])
     dy = torch.abs(pred_prob[:, :, 1:, :] - pred_prob[:, :, :-1, :])
     grad_smoothness = (dx.mean() + dy.mean())
@@ -74,6 +87,9 @@ def pinn_regularization_loss(pred, img, lambda_grad=0.5, lambda_edge=0.5):
 def hybrid_pinn_loss(pred, target, img, dice_w=1.0, bce_w=1.0, boundary_w=0.5, pinn_w=0.3):
     """
     Combined loss with PINN-inspired regularization.
+    pred: logits from network
+    target: ground-truth mask (0/1)
+    img: original image (B,3,H,W)
     """
     loss_seg = bce_dice_loss(pred, target, dice_w, bce_w)
     loss_boundary = boundary_loss(pred, target)
