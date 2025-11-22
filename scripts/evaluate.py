@@ -10,10 +10,6 @@ from models import UNet, Refiner
 from dataset import KvasirSegDataset
 from utils import dice_coeff, save_vis
 
-# -------------------------------
-# Metric calculations
-# -------------------------------
-
 threshold = 0.6
 def compute_metrics(preds, masks):
     preds = (torch.sigmoid(preds) > threshold).float().cpu().numpy()
@@ -39,9 +35,6 @@ def compute_metrics(preds, masks):
         F1=np.mean(f1s),
     )
 
-# -------------------------------
-# Evaluation function
-# -------------------------------
 def evaluate_model(args, device, use_refiner=False):
     os.makedirs(args["save_dir"], exist_ok=True)
     ds = KvasirSegDataset(args["images_dir"], args["masks_dir"], img_size=args["img_size"])
@@ -79,7 +72,6 @@ def evaluate_model(args, device, use_refiner=False):
             if i < 10:  # save first 10 visuals
                 save_vis(img[0].cpu(), mask[0].cpu(), torch.sigmoid(pred[0].cpu()), os.path.join(out_vis_dir, f"sample_{i}.png"))
 
-    # Aggregate results
     keys = metrics_all[0].keys()
     avg_metrics = {k: np.mean([m[k] for m in metrics_all]) for k in keys}
 

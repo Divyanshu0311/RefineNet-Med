@@ -1,6 +1,6 @@
 import torch
 from torchsummary import summary
-from scripts.models import UNet, Refiner
+from scripts.models import Refiner, UNet
 
 model = UNet(in_channels=3, out_channels=1, base_filters=32)
 refiner = Refiner(in_channels=4, out_channels=1, base_filters=16)

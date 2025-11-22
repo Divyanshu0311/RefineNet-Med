@@ -7,8 +7,8 @@ def main():
         images_dir="Kvasir-SEG/test/images",
         masks_dir="Kvasir-SEG/test/masks",#"data/Kvasir-SEG/masks",
         # model_path="outputs/unet_pretrained.pth",
-        model_path="output_models_augmented_pinn/G_iter1000.pth",
-        refiner_path="output_models_augmented_pinn/R_iter1000.pth",
+        model_path="new_model/G_iter11500.pth",
+        refiner_path="new_model/R_iter11500.pth",
         save_dir="eval_outputs/eval_results_augmented_pinn",
         img_size=256,
         base_filters=32,
@@ -16,7 +16,7 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using Device:", device)
-    print("🚀 Starting evaluation...")
+    print("Starting evaluation...")
     evaluate_model(args, device, use_refiner=True)
 
 if __name__ == "__main__":
