@@ -7,9 +7,9 @@ def main():
         images_dir="Kvasir-SEG/test/images",
         masks_dir="Kvasir-SEG/test/masks",#"data/Kvasir-SEG/masks",
         # model_path="outputs/unet_pretrained.pth",
-        model_path="new_model/G_iter11500.pth",
-        refiner_path="new_model/R_iter11500.pth",
-        save_dir="eval_outputs/eval_results_augmented_pinn",
+        model_path="outputs/hybrid_with_duckloss/G_iter17500.pth",
+        refiner_path="outputs/hybrid_with_duckloss/R_iter17500.pth",
+        save_dir="eval_outputs/eval_result_ducknet_incorporated",
         img_size=256,
         base_filters=32,
     )
